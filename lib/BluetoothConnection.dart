@@ -3,8 +3,10 @@ part of flutter_bluetooth_serial_ble;
 enum ConnectionType {
   CLASSIC,
   BLE,
+
   /// Try BT classic, then on failure try BLE
   AUTO,
+
   /// Try BLE, then on failure try BT classic
   AUTO_BUT_TRY_BLE_FIRST
 }
@@ -65,7 +67,9 @@ class BluetoothConnection {
   }
 
   /// Returns connection to given address.
-  static Future<BluetoothConnection> toAddress(String? address, {ConnectionType type = ConnectionType.AUTO}) async { //DUMMY //THINK Expose bc/ble?
+  static Future<BluetoothConnection> toAddress(String? address,
+      {ConnectionType type = ConnectionType.AUTO}) async {
+    //DUMMY //THINK Expose bc/ble?
     switch (type) {
       case ConnectionType.AUTO:
         try {
@@ -93,7 +97,6 @@ class BluetoothConnection {
     return BluetoothConnection._consumeConnectionID(await FlutterBluetoothSerial
         ._methodChannel
         .invokeMethod('connect', {"address": address, "isLE": true}));
-
   }
 
   static Future<BluetoothConnection> toAddressBC(String? address) async {
