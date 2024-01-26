@@ -25,6 +25,8 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler {
         const val engineId = "BLEBackground"
         const val channelId = "BLEBackgroundChannel"
         const val readChannelId = "$channelId/read"
+        const val callbackHandleKey = "callbackHandle"
+        const val prefName = "ble_background"
     }
 
     private lateinit var engine: FlutterEngine
@@ -72,6 +74,8 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler {
             engine = FlutterEngine(this)
             engineCache.put(engineId, engine)
         }
+
+        // register callback handle
         val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
         val args = DartExecutor.DartCallback(
             assets,
@@ -82,7 +86,6 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler {
 
         methodChannel = MethodChannel(messenger, channelId)
         methodChannel.setMethodCallHandler(this)
-
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {

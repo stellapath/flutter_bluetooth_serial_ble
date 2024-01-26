@@ -10,12 +10,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.os.Build;
 import android.util.Log;
 import android.util.SparseArray;
 import android.os.AsyncTask;
@@ -28,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.net.NetworkInterface;
+import java.util.Objects;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
@@ -40,6 +43,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.github.edufolly.flutterbluetoothserial.bg.BLEBackgroundConnection;
 import io.github.edufolly.flutterbluetoothserial.bg.PermissionUtil;
 import io.github.edufolly.flutterbluetoothserial.le.BluetoothConnectionLE;
 
@@ -1053,6 +1057,22 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                     }
                     break;
                 }
+
+                case "registerBackgroundService":
+                    if (!call.hasArgument(BLEBackgroundConnection.callbackHandleKey)) {
+                        result.error("invalid_argument", "", null);
+                        break;
+                    }
+
+                    long callbackHandle = Objects.requireNonNull(call.argument(BLEBackgroundConnection.callbackHandleKey));
+                    Intent intent = new Intent(activeContext, BLEBackgroundConnection.class);
+                    intent.putExtra(BLEBackgroundConnection.callbackHandleKey, callbackHandle);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        activeContext.startForegroundService(intent);
+                    } else {
+                        activeContext.startService(intent);
+                    }
+                    break;
 
                 default:
                     result.notImplemented();
