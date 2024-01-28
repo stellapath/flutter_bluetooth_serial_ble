@@ -71,12 +71,14 @@ public class BluetoothConnectionLE extends BluetoothConnectionBase {
                 @Override
                 public void onSerialRead(byte[] data) {
                     BluetoothConnectionLE.this.onRead(data);
+                    BluetoothConnectionLE.this.onRead(device, data);
                 }
 
                 @Override
                 public void onSerialRead(ArrayDeque<byte[]> datas) {
                     for (byte[] data : datas) {
                         BluetoothConnectionLE.this.onRead(data);
+                        BluetoothConnectionLE.this.onRead(device, data);
                     }
                 }
 

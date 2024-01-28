@@ -1,8 +1,11 @@
 package io.github.edufolly.flutterbluetoothserial;
 
+import android.bluetooth.BluetoothDevice;
+
 public abstract class BluetoothConnectionBase implements io.github.edufolly.flutterbluetoothserial.BluetoothConnection {
     public interface OnReadCallback {
-        public void onRead(byte[] data);
+        void onRead(byte[] data);
+        default void onRead(BluetoothDevice device, byte[] data) {}
     }
     public interface OnDisconnectedCallback {
         public void onDisconnected(boolean byRemote);
@@ -18,6 +21,10 @@ public abstract class BluetoothConnectionBase implements io.github.edufolly.flut
 
     public void onRead(byte[] data) {
         onReadCallback.onRead(data);
+    }
+
+    public void onRead(BluetoothDevice device, byte[] data) {
+        onReadCallback.onRead(device, data);
     }
 
     public void onDisconnected(boolean byRemote) {

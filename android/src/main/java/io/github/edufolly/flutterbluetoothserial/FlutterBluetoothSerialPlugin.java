@@ -44,7 +44,9 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.github.edufolly.flutterbluetoothserial.bg.BLEBackgroundConnection;
+import io.github.edufolly.flutterbluetoothserial.bg.BLEBackgroundStore;
 import io.github.edufolly.flutterbluetoothserial.bg.PermissionUtil;
+import io.github.edufolly.flutterbluetoothserial.bg.param.StartServiceParam;
 import io.github.edufolly.flutterbluetoothserial.le.BluetoothConnectionLE;
 
 public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAware {
@@ -83,6 +85,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
     private Activity activity;
     private BinaryMessenger messenger;
     private Context activeContext;
+    private BLEBackgroundStore store;
 
     /// Constructs the plugin instance
     public FlutterBluetoothSerialPlugin() {
@@ -325,7 +328,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
         messenger = binding.getBinaryMessenger();
 
         methodChannel = new MethodChannel(messenger, PLUGIN_NAMESPACE + "/methods");
-        methodChannel.setMethodCallHandler( new FlutterBluetoothSerialMethodCallHandler() );
+        methodChannel.setMethodCallHandler(new FlutterBluetoothSerialMethodCallHandler());
 
         EventChannel stateChannel = new EventChannel(messenger, PLUGIN_NAMESPACE + "/state");
 
@@ -424,7 +427,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
         );
         activity = binding.getActivity();
         activeContext = binding.getActivity().getApplicationContext();
-
+        store = new BLEBackgroundStore(activeContext);
     }
 
     @Override
@@ -1058,21 +1061,34 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                     break;
                 }
 
-                case "registerBackgroundService":
-                    if (!call.hasArgument(BLEBackgroundConnection.callbackHandleKey)) {
+                case "startService": {
+                    try {
+                        StartServiceParam param = StartServiceParam.fromArguments(call.arguments);
+                        Intent intent = new Intent(activeContext, BLEBackgroundConnection.class);
+                        intent.putExtra(BLEBackgroundConnection.startServiceParamKey, param);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            activeContext.startForegroundService(intent);
+                        } else {
+                            activeContext.startService(intent);
+                        }
+                        if (param.getAndroidSettings().getStartAfterBoot()) {
+                            store.putServiceParam(param);
+                        }
+                        result.success(null);
+                    } catch (Exception e) {
                         result.error("invalid_argument", "", null);
                         break;
                     }
+                }
+                break;
 
-                    long callbackHandle = Objects.requireNonNull(call.argument(BLEBackgroundConnection.callbackHandleKey));
+                case "stopService": {
                     Intent intent = new Intent(activeContext, BLEBackgroundConnection.class);
-                    intent.putExtra(BLEBackgroundConnection.callbackHandleKey, callbackHandle);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        activeContext.startForegroundService(intent);
-                    } else {
-                        activeContext.startService(intent);
-                    }
-                    break;
+                    activeContext.stopService(intent);
+                    store.removeServiceParam();
+                    result.success(null);
+                }
+                break;
 
                 default:
                     result.notImplemented();
