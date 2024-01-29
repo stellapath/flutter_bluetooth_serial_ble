@@ -47,11 +47,12 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: MethodChannel
     private lateinit var adapter: BluetoothAdapter
+    private var readSink: EventSink? = null
     private var timer: Timer? = null
     private var scanInterval: Long = 15000
 
-    private var addresses = mutableSetOf<String>()
-    private val connections = mutableMapOf<String, BluetoothConnection>()
+    private var addresses: MutableSet<String> = mutableSetOf()
+    private val connections: MutableMap<String, BluetoothConnection> = mutableMapOf()
     private var readCallbackHandle: Long = 0
 
     private val messenger
@@ -112,6 +113,23 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
 
         methodChannel = MethodChannel(messenger, channelId)
         methodChannel.setMethodCallHandler(this)
+
+        val readChannel = EventChannel(messenger, readChannelId)
+        readChannel.setStreamHandler(object : StreamHandler {
+            override fun onListen(arguments: Any?, events: EventSink?) {
+                readSink = events
+            }
+
+            override fun onCancel(arguments: Any?) {
+                launch {
+                    connections.forEach { entry ->
+                        entry.value.disconnect()
+                    }
+                    connections.clear()
+                    startTimer(scanInterval)
+                }
+            }
+        })
     }
 
     private fun startTimer(interval: Long) {
@@ -133,7 +151,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             BLEBackgroundMethod.connect -> connect(result, call.argument<String>("address"))
-            BLEBackgroundMethod.disconnect -> connect(result, call.argument<String>("address"))
+            BLEBackgroundMethod.disconnect -> disconnect(result, call.argument<String>("address"))
             else -> result.notImplemented()
         }
     }
@@ -155,25 +173,6 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
     }
 
     private fun connect(address: String) {
-        var connection: BluetoothConnectionLE? = null
-        var readSink: EventSink? = null
-
-        val readChannel = EventChannel(messenger, readChannelId)
-        readChannel.setStreamHandler(object : StreamHandler {
-            override fun onListen(arguments: Any?, events: EventSink?) {
-                readSink = events
-            }
-
-            override fun onCancel(arguments: Any?) {
-                launch {
-                    connection?.disconnect()
-                    connection = null
-
-                    startTimer(scanInterval)
-                }
-            }
-        })
-
         val onRead = object : OnReadCallback {
             override fun onRead(data: ByteArray) {}
             override fun onRead(device: BluetoothDevice, data: ByteArray) {
@@ -205,10 +204,9 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
             }
         }
 
-        connection = BluetoothConnectionLE(onRead, onDisconnect, this)
-        connection?.connect(address)
-
-        connections[address] = connection!!
+        val connection = BluetoothConnectionLE(onRead, onDisconnect, this)
+        connection.connect(address)
+        connections[address] = connection
         addresses.add(address)
     }
 

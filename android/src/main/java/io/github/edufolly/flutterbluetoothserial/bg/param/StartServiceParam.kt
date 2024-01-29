@@ -12,6 +12,7 @@ data class StartServiceParam(
     val androidSettings: AndroidSettings
 ) : Parcelable {
     @Parcelize
+    @Serializable
     data class AndroidSettings(
         val notificationTitle: String,
         val notificationBody: String,
@@ -30,7 +31,7 @@ data class StartServiceParam(
                         ?: throw InvalidArgumentException(),
                     showConnections = map["showConnections"] as? Boolean
                         ?: throw InvalidArgumentException(),
-                    scanInterval = map["scanInterval"] as? Long
+                    scanInterval = (map["scanInterval"] as? Int)?.toLong()
                         ?: throw InvalidArgumentException(),
                     startAfterBoot = map["startAfterBoot"] as? Boolean
                         ?: throw InvalidArgumentException(),

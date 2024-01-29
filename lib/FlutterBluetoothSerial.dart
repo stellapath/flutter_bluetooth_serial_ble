@@ -27,6 +27,10 @@ class FlutterBluetoothSerial {
     });
   }
 
+  Future<bool?> ensurePermissions() async {
+    return _methodChannel.invokeMethod('ensurePermissions');
+  }
+
   /* Status */
   /// Checks is the Bluetooth interface avaliable on host device.
   Future<bool?> get isAvailable async =>
@@ -258,8 +262,11 @@ class FlutterBluetoothSerial {
       connectToAddress(device.address);
 
   @Deprecated('Use `BluetoothConnection.toAddress(address)` instead')
-  Future<void> connectToAddress(String? address, {ConnectionType type = ConnectionType.AUTO}) => Future(() async {
-        _defaultConnection = await BluetoothConnection.toAddress(address, type: type);
+  Future<void> connectToAddress(String? address,
+          {ConnectionType type = ConnectionType.AUTO}) =>
+      Future(() async {
+        _defaultConnection =
+            await BluetoothConnection.toAddress(address, type: type);
       });
 
   @Deprecated(

@@ -42,6 +42,7 @@ class BLEBackgroundConnection {
         "notificationBody": androidSettings.notificationBody,
         "showConnections": androidSettings.showConnections,
         "scanInterval": androidSettings.scanInterval,
+        "startAfterBoot": androidSettings.startAfterBoot,
       },
     });
   }
@@ -52,13 +53,9 @@ class BLEBackgroundConnection {
 
   Future<void> connect({
     required String address,
-    required Function(Uint8List bytes) callback,
   }) {
-    final callbackHandle =
-        PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
     return _backgroundChannel.invokeMethod("connect", {
       "address": address,
-      "callbackHandle": callbackHandle,
     });
   }
 

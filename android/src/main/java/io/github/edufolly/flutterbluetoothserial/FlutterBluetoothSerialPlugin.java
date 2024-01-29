@@ -1076,7 +1076,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                         }
                         result.success(null);
                     } catch (Exception e) {
-                        result.error("invalid_argument", "", null);
+                        result.error("invalid_argument", e.getMessage(), null);
                         break;
                     }
                 }
