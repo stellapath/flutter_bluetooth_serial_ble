@@ -30,7 +30,8 @@ class BLEBackgroundConnection {
     BLEAndroidSettings androidSettings = const BLEAndroidSettings(),
   }) {
     final initCallbackHandle =
-        PluginUtilities.getCallbackHandle(handleBackgroundConnection);
+        PluginUtilities.getCallbackHandle(handleBackgroundConnection)!
+            .toRawHandle();
     final readCallbackhandle =
         PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
     return _foregroundChannel.invokeMapMethod("startService", {
