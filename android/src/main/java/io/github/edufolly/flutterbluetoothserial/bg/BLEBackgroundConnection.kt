@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.CountDownTimer
 import android.os.IBinder
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -47,6 +48,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: MethodChannel
     private lateinit var adapter: BluetoothAdapter
+    private lateinit var store: BLEBackgroundStore
     private var readSink: EventSink? = null
     private var timer: Timer? = null
     private var scanInterval: Long = 15000
@@ -57,6 +59,12 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
 
     private val messenger
         get() = engine.dartExecutor.binaryMessenger
+
+
+    override fun onCreate() {
+        super.onCreate()
+        store = BLEBackgroundStore(this)
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val params = intent?.getParcelableExtra<StartServiceParam>(startServiceParamKey)
@@ -81,6 +89,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
 
         startForeground(101, notification)
 
+        addresses = store.getAddressSet()
         scanInterval = params.androidSettings.scanInterval
         startTimer(scanInterval)
 
@@ -208,6 +217,8 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         connection.connect(address)
         connections[address] = connection
         addresses.add(address)
+
+        store.putAddressSet(addresses)
     }
 
     private fun disconnect(result: MethodChannel.Result, address: String?) {
