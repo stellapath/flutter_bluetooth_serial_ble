@@ -7,9 +7,11 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 
@@ -18,6 +20,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.os.Build;
+import android.os.IBinder;
 import android.util.Log;
 import android.util.SparseArray;
 import android.os.AsyncTask;
@@ -49,7 +52,7 @@ import io.github.edufolly.flutterbluetoothserial.bg.PermissionUtil;
 import io.github.edufolly.flutterbluetoothserial.bg.param.StartServiceParam;
 import io.github.edufolly.flutterbluetoothserial.le.BluetoothConnectionLE;
 
-public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAware {
+public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAware, ServiceConnection {
     // Plugin
     private static final String TAG = "FlutterBluePlugin";
     private static final String PLUGIN_NAMESPACE = "flutter_bluetooth_serial_ble";
@@ -86,6 +89,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
     private BinaryMessenger messenger;
     private Context activeContext;
     private BLEBackgroundStore store;
+    private BLEBackgroundConnection currentRunningService;
 
     /// Constructs the plugin instance
     public FlutterBluetoothSerialPlugin() {
@@ -1066,18 +1070,22 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                         StartServiceParam param = StartServiceParam.fromArguments(call.arguments);
                         Intent intent = new Intent(activeContext, BLEBackgroundConnection.class);
                         intent.putExtra(BLEBackgroundConnection.startServiceParamKey, param);
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            activeContext.startForegroundService(intent);
-                        } else {
-                            activeContext.startService(intent);
-                        }
+//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                            activeContext.startForegroundService(intent);
+//                        } else {
+//                            activeContext.startService(intent);
+//                        }
+                        ContextCompat.startForegroundService(activeContext, intent);
+                        activeContext.bindService(
+                                intent,
+                                FlutterBluetoothSerialPlugin.this,
+                                Context.BIND_AUTO_CREATE);
                         if (param.getAndroidSettings().getStartAfterBoot()) {
                             store.putServiceParam(param);
                         }
                         result.success(null);
                     } catch (Exception e) {
                         result.error("invalid_argument", e.getMessage(), null);
-                        break;
                     }
                 }
                 break;
@@ -1090,11 +1098,42 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                 }
                 break;
 
+                case "connectOnBackground": {
+                    if (currentRunningService != null) {
+                        currentRunningService.connect(result, call.argument("address"));
+                    }
+                }
+                break;
+
+                case "disconnectOnBackground": {
+                    if (currentRunningService != null) {
+                        currentRunningService.disconnect(result, call.argument("address"));
+                    }
+                }
+                break;
+
+                case "foo": {
+                    System.out.println(">>> foo");
+                }
+                break;
+
                 default:
                     result.notImplemented();
                     break;
             }
         }
 
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        if (service instanceof BLEBackgroundConnection.Binder) {
+            currentRunningService = ((BLEBackgroundConnection.Binder) service).getService();
+        }
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        currentRunningService = null;
     }
 }

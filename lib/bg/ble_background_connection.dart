@@ -6,11 +6,8 @@ import 'package:flutter_bluetooth_serial_ble/bg/ble_android_setting.dart';
 import 'package:flutter_bluetooth_serial_ble/flutter_bluetooth_serial_ble.dart';
 
 class BLEBackgroundConnection {
-  static const channelId = "BLEBackgroundChannel";
-
-  static final MethodChannel _foregroundChannel =
+  static final MethodChannel _channel =
       const MethodChannel('${FlutterBluetoothSerial.namespace}/methods');
-  static final MethodChannel _backgroundChannel = MethodChannel(channelId);
 
   // Future<void> registerBackgroundCallback(Function callback) async {
   //   final callbackHandle =
@@ -21,7 +18,7 @@ class BLEBackgroundConnection {
   // }
 
   Future<bool> isServiceRunning() async {
-    return await _foregroundChannel.invokeMethod("isServiceRunning");
+    return await _channel.invokeMethod("isServiceRunning");
   }
 
   Future<void> startService({
@@ -34,7 +31,7 @@ class BLEBackgroundConnection {
             .toRawHandle();
     final readCallbackhandle =
         PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
-    return _foregroundChannel.invokeMapMethod("startService", {
+    return _channel.invokeMapMethod("startService", {
       "initCallbackHandle": initCallbackHandle,
       "readCallbackHandle": readCallbackhandle,
       "androidSettings": {
@@ -48,20 +45,24 @@ class BLEBackgroundConnection {
   }
 
   Future<void> stopService() {
-    return _foregroundChannel.invokeMethod("stopService");
+    return _channel.invokeMethod("stopService");
   }
 
   Future<void> connect({
     required String address,
   }) {
-    return _backgroundChannel.invokeMethod("connect", {
+    return _channel.invokeMapMethod("connectOnBackground", {
       "address": address,
     });
   }
 
   Future<void> disconnect({required String address}) {
-    return _backgroundChannel.invokeMethod("disconnect", {
+    return _channel.invokeMapMethod("disconnectOnBackground", {
       "address": address,
     });
+  }
+
+  Future<void> foo() {
+    return _channel.invokeMethod("foo");
   }
 }

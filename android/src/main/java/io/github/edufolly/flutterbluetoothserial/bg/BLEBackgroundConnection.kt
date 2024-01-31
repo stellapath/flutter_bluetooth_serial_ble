@@ -32,7 +32,14 @@ import java.util.Timer
 import kotlin.concurrent.timer
 import kotlin.coroutines.CoroutineContext
 
-class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, CoroutineScope {
+class BLEBackgroundConnection : Service(), CoroutineScope {
+
+    inner class Binder : android.os.Binder() {
+        fun getService(): BLEBackgroundConnection {
+            return this@BLEBackgroundConnection
+        }
+    }
+
 
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Main
@@ -45,8 +52,8 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         var isServiceRunning: Boolean = false
     }
 
+    private lateinit var binder: Binder
     private lateinit var engine: FlutterEngine
-    private lateinit var methodChannel: MethodChannel
     private lateinit var adapter: BluetoothAdapter
     private lateinit var store: BLEBackgroundStore
     private var readSink: EventSink? = null
@@ -63,6 +70,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
 
     override fun onCreate() {
         super.onCreate()
+        binder = Binder()
         store = BLEBackgroundStore(this)
     }
 
@@ -74,6 +82,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         }
 
         ensureFlutterInitialized(params.initCallbackHandle)
+        readCallbackHandle = params.readCallbackHandle
 
         val manager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         adapter = manager.adapter
@@ -98,8 +107,8 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         return START_STICKY
     }
 
-    override fun onBind(p0: Intent?): IBinder? {
-        return null
+    override fun onBind(p0: Intent?): IBinder {
+        return binder
     }
 
     private fun ensureFlutterInitialized(callbackHandle: Long) {
@@ -110,18 +119,6 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
             engine = FlutterEngine(this)
             engineCache.put(engineId, engine)
         }
-
-        // register callback handle
-        val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
-        val args = DartExecutor.DartCallback(
-            assets,
-            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-            callbackInfo
-        )
-        engine.dartExecutor.executeDartCallback(args)
-
-        methodChannel = MethodChannel(messenger, channelId)
-        methodChannel.setMethodCallHandler(this)
 
         val readChannel = EventChannel(messenger, readChannelId)
         readChannel.setStreamHandler(object : StreamHandler {
@@ -139,6 +136,15 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
                 }
             }
         })
+
+        // register callback handle
+        val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+        val args = DartExecutor.DartCallback(
+            assets,
+            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+            callbackInfo
+        )
+        engine.dartExecutor.executeDartCallback(args)
     }
 
     private fun startTimer(interval: Long) {
@@ -157,15 +163,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         }
     }
 
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        when (call.method) {
-            BLEBackgroundMethod.connect -> connect(result, call.argument<String>("address"))
-            BLEBackgroundMethod.disconnect -> disconnect(result, call.argument<String>("address"))
-            else -> result.notImplemented()
-        }
-    }
-
-    private fun connect(result: MethodChannel.Result, address: String?) {
+    fun connect(result: MethodChannel.Result, address: String?) {
         if (address == null || !BluetoothAdapter.checkBluetoothAddress(address)) {
             result.error("invalid_argument", "address is not valid", null)
             return
@@ -221,7 +219,7 @@ class BLEBackgroundConnection : Service(), MethodChannel.MethodCallHandler, Coro
         store.putAddressSet(addresses)
     }
 
-    private fun disconnect(result: MethodChannel.Result, address: String?) {
+    fun disconnect(result: MethodChannel.Result, address: String?) {
         if (address == null || !BluetoothAdapter.checkBluetoothAddress(address)) {
             result.error("invalid_argument", "address is not valid", null)
             return

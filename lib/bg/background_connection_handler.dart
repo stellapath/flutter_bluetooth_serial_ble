@@ -2,10 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_bluetooth_serial_ble/bg/ble_background_connection.dart';
 import 'package:flutter_bluetooth_serial_ble/flutter_bluetooth_serial_ble.dart';
 
-const readChannelId = "${BLEBackgroundConnection.channelId}/read";
+const readChannelId = "BLEBackgroundChannel/read";
 
 @pragma('vm:entry-point')
 void handleBackgroundConnection() {
