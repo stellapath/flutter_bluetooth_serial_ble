@@ -4,7 +4,10 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -19,19 +22,39 @@ object NotificationUtil {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun hasPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun createNotificationChannel(context: Context) {
-        val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
+        val channel =
+            NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH)
         NotificationManagerCompat.from(context).createNotificationChannel(channel)
     }
 
     fun createNotification(context: Context, title: String, content: String): Notification {
+        val className = "${context.packageName}.MainActivity"
+        val intent = Intent().apply {
+            component = ComponentName(context.packageName, className)
+        }
+        val pendingIntent =
+            PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        val cancelIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            Intent(context, StopReceiver::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val cancelAction = NotificationCompat.Action(null, "중지", cancelIntent)
         return NotificationCompat.Builder(context, channelId)
             .setContentTitle(title)
             .setContentText(content)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .addAction(cancelAction)
             .build()
     }
 

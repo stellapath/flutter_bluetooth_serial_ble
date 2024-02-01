@@ -152,7 +152,11 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
         timer = timer(period = interval) {
             for (address in addresses) {
                 if (!connections.containsKey(address)) {
-                    connect(address)
+                    try {
+                        connect(address)
+                    } catch (e: Exception) {
+                        // TODO: handle error
+                    }
                 }
             }
 
@@ -174,9 +178,12 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             return
         }
 
-        connect(address)
-
-        result.success(null)
+        try {
+            connect(address)
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("connection_error", null, null)
+        }
     }
 
     private fun connect(address: String) {
