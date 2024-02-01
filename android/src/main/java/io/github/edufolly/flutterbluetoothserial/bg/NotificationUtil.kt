@@ -41,12 +41,12 @@ object NotificationUtil {
             component = ComponentName(context.packageName, className)
         }
         val pendingIntent =
-            PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+            PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val cancelIntent = PendingIntent.getBroadcast(
             context,
             0,
             Intent(context, StopReceiver::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val cancelAction = NotificationCompat.Action(null, "중지", cancelIntent)
         return NotificationCompat.Builder(context, channelId)

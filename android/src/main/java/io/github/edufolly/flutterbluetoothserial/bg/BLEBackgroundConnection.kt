@@ -96,7 +96,7 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             params.androidSettings.notificationBody,
         )
 
-        startForeground(101, notification)
+        startForeground(1, notification)
 
         addresses = store.getAddressSet()
         scanInterval = params.androidSettings.scanInterval
