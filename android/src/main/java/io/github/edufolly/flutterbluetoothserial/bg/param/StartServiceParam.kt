@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Parcelize
 @Serializable
 data class StartServiceParam(
+    val serviceCallbackHandle: Long,
     val initCallbackHandle: Long,
     val readCallbackHandle: Long,
     val androidSettings: AndroidSettings
@@ -45,6 +46,7 @@ data class StartServiceParam(
         fun fromArguments(args: Any?): StartServiceParam {
             val map = args as? Map<*, *> ?: throw InvalidArgumentException()
             return StartServiceParam(
+                serviceCallbackHandle = map["serviceCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
                 initCallbackHandle = map["initCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
                 readCallbackHandle = map["readCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
                 androidSettings = AndroidSettings.fromArguments(map["androidSettings"])

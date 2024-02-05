@@ -47,6 +47,7 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
     companion object {
         const val engineId = "BLEBackground"
         const val channelId = "BLEBackgroundChannel"
+        const val initChannelId = "$channelId/init"
         const val readChannelId = "$channelId/read"
         const val startServiceParamKey = "startServiceParamKey"
         var isServiceRunning: Boolean = false
@@ -81,8 +82,18 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             return START_STICKY
         }
 
-        ensureFlutterInitialized(params.initCallbackHandle)
+        ensureFlutterInitialized(params.serviceCallbackHandle)
         readCallbackHandle = params.readCallbackHandle
+
+        val initChannel = EventChannel(messenger, initChannelId)
+        initChannel.setStreamHandler(object : StreamHandler {
+            override fun onListen(arguments: Any?, events: EventSink?) {
+                events?.success(mapOf("initCallbackHandle" to params.initCallbackHandle))
+            }
+
+            override fun onCancel(arguments: Any?) {
+            }
+        })
 
         val manager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         adapter = manager.adapter

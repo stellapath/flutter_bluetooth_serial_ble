@@ -9,29 +9,25 @@ class BLEBackgroundConnection {
   static final MethodChannel _channel =
       const MethodChannel('${FlutterBluetoothSerial.namespace}/methods');
 
-  // Future<void> registerBackgroundCallback(Function callback) async {
-  //   final callbackHandle =
-  //       PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
-  //   _backgroundChannel.invokeMethod("registerBackgroundCallback", {
-  //     "callbackHandle": callbackHandle,
-  //   });
-  // }
-
   Future<bool> isServiceRunning() async {
     return await _channel.invokeMethod("isServiceRunning");
   }
 
   Future<void> startService({
-    required Function(BluetoothDevice device, Uint8List bytes) callback,
+    required Function() initCallback,
+    required Function(BluetoothDevice device, Uint8List bytes) readCallback,
     bool autoConnect = true,
     BLEAndroidSettings androidSettings = const BLEAndroidSettings(),
   }) {
-    final initCallbackHandle =
+    final serviceCallbackHandle =
         PluginUtilities.getCallbackHandle(handleBackgroundConnection)!
             .toRawHandle();
+    final initCallbackHandle =
+        PluginUtilities.getCallbackHandle(initCallback)!.toRawHandle();
     final readCallbackhandle =
-        PluginUtilities.getCallbackHandle(callback)!.toRawHandle();
+        PluginUtilities.getCallbackHandle(readCallback)!.toRawHandle();
     return _channel.invokeMapMethod("startService", {
+      "serviceCallbackHandle": serviceCallbackHandle,
       "initCallbackHandle": initCallbackHandle,
       "readCallbackHandle": readCallbackhandle,
       "androidSettings": {
