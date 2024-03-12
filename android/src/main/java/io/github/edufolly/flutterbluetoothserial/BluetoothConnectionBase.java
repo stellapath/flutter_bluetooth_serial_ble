@@ -7,6 +7,11 @@ public abstract class BluetoothConnectionBase implements io.github.edufolly.flut
         void onRead(byte[] data);
         default void onRead(BluetoothDevice device, byte[] data) {}
     }
+
+    public interface OnConnectCallback {
+        void onConnect();
+    }
+
     public interface OnDisconnectedCallback {
         public void onDisconnected(boolean byRemote);
     }

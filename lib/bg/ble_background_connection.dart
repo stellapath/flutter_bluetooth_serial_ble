@@ -16,6 +16,7 @@ class BLEBackgroundConnection {
   Future<void> startService({
     required Function() initCallback,
     required Function(BluetoothDevice device, Uint8List bytes) readCallback,
+    Function(BluetoothDevice, bool connected)? stateChangeCallback,
     bool autoConnect = true,
     BLEAndroidSettings androidSettings = const BLEAndroidSettings(),
   }) {
@@ -26,10 +27,14 @@ class BLEBackgroundConnection {
         PluginUtilities.getCallbackHandle(initCallback)!.toRawHandle();
     final readCallbackhandle =
         PluginUtilities.getCallbackHandle(readCallback)!.toRawHandle();
+    final stateChangeCallbackHandle = stateChangeCallback != null
+        ? PluginUtilities.getCallbackHandle(stateChangeCallback)!.toRawHandle()
+        : null;
     return _channel.invokeMapMethod("startService", {
       "serviceCallbackHandle": serviceCallbackHandle,
       "initCallbackHandle": initCallbackHandle,
       "readCallbackHandle": readCallbackhandle,
+      "stateChangeCallbackHandle": stateChangeCallbackHandle,
       "androidSettings": {
         "notificationTitle": androidSettings.notificationTitle,
         "notificationBody": androidSettings.notificationBody,
@@ -58,7 +63,8 @@ class BLEBackgroundConnection {
     });
   }
 
-  Future<void> foo() {
-    return _channel.invokeMethod("foo");
+  Future<List<BluetoothDevice>> getConnectedDevices() {
+    return _channel.invokeListMethod("getConnectedDevices").then(
+        (value) => value!.map((e) => BluetoothDevice.fromMap(e)).toList());
   }
 }

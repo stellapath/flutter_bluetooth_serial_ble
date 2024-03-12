@@ -10,6 +10,7 @@ data class StartServiceParam(
     val serviceCallbackHandle: Long,
     val initCallbackHandle: Long,
     val readCallbackHandle: Long,
+    val stateChangeCallbackHandle: Long?,
     val androidSettings: AndroidSettings
 ) : Parcelable {
     @Parcelize
@@ -49,6 +50,7 @@ data class StartServiceParam(
                 serviceCallbackHandle = map["serviceCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
                 initCallbackHandle = map["initCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
                 readCallbackHandle = map["readCallbackHandle"] as? Long ?: throw InvalidArgumentException(),
+                stateChangeCallbackHandle = map["stateChangeCallbackHandle"] as? Long,
                 androidSettings = AndroidSettings.fromArguments(map["androidSettings"])
             )
         }

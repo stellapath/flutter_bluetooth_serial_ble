@@ -7,7 +7,6 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.CountDownTimer
 import android.os.IBinder
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -16,12 +15,13 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.EventChannel.EventSink
 import io.flutter.plugin.common.EventChannel.StreamHandler
-import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
 import io.github.edufolly.flutterbluetoothserial.BluetoothConnection
+import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase.OnConnectCallback
 import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase.OnDisconnectedCallback
 import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase.OnReadCallback
+import io.github.edufolly.flutterbluetoothserial.BuildConfig
 import io.github.edufolly.flutterbluetoothserial.FlutterBluetoothSerialPlugin
 import io.github.edufolly.flutterbluetoothserial.bg.param.StartServiceParam
 import io.github.edufolly.flutterbluetoothserial.le.BluetoothConnectionLE
@@ -49,6 +49,7 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
         const val channelId = "BLEBackgroundChannel"
         const val initChannelId = "$channelId/init"
         const val readChannelId = "$channelId/read"
+        const val stateChangeChannelId = "$channelId/stateChange"
         const val startServiceParamKey = "startServiceParamKey"
         var isServiceRunning: Boolean = false
     }
@@ -58,12 +59,14 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
     private lateinit var adapter: BluetoothAdapter
     private lateinit var store: BLEBackgroundStore
     private var readSink: EventSink? = null
+    private var stateChangeSink: EventSink? = null
     private var timer: Timer? = null
     private var scanInterval: Long = 15000
 
     private var addresses: MutableSet<String> = mutableSetOf()
     private val connections: MutableMap<String, BluetoothConnection> = mutableMapOf()
     private var readCallbackHandle: Long = 0
+    private var stateChangeCallbackHandle: Long? = null
 
     private val messenger
         get() = engine.dartExecutor.binaryMessenger
@@ -84,11 +87,22 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
 
         ensureFlutterInitialized(params.serviceCallbackHandle)
         readCallbackHandle = params.readCallbackHandle
+        stateChangeCallbackHandle = params.stateChangeCallbackHandle
 
         val initChannel = EventChannel(messenger, initChannelId)
         initChannel.setStreamHandler(object : StreamHandler {
             override fun onListen(arguments: Any?, events: EventSink?) {
                 events?.success(mapOf("initCallbackHandle" to params.initCallbackHandle))
+            }
+
+            override fun onCancel(arguments: Any?) {
+            }
+        })
+
+        val stateChangeChannel = EventChannel(messenger, stateChangeChannelId)
+        stateChangeChannel.setStreamHandler(object: StreamHandler {
+            override fun onListen(arguments: Any?, events: EventSink?) {
+                stateChangeSink = events
             }
 
             override fun onCancel(arguments: Any?) {
@@ -131,6 +145,19 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             engineCache.put(engineId, engine)
         }
 
+        createReadChannel()
+
+        // register callback handle
+        val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+        val args = DartExecutor.DartCallback(
+            assets,
+            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
+            callbackInfo
+        )
+        engine.dartExecutor.executeDartCallback(args)
+    }
+
+    private fun createReadChannel() {
         val readChannel = EventChannel(messenger, readChannelId)
         readChannel.setStreamHandler(object : StreamHandler {
             override fun onListen(arguments: Any?, events: EventSink?) {
@@ -147,15 +174,6 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
                 }
             }
         })
-
-        // register callback handle
-        val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
-        val args = DartExecutor.DartCallback(
-            assets,
-            FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-            callbackInfo
-        )
-        engine.dartExecutor.executeDartCallback(args)
     }
 
     private fun startTimer(interval: Long) {
@@ -166,7 +184,9 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
                     try {
                         connect(address)
                     } catch (e: Exception) {
-                        // TODO: handle error
+                        if (BuildConfig.DEBUG) {
+                            e.printStackTrace()
+                        }
                     }
                 }
             }
@@ -202,16 +222,9 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             override fun onRead(data: ByteArray) {}
             override fun onRead(device: BluetoothDevice, data: ByteArray) {
                 launch {
-                    val deviceMap = mapOf(
-                        "address" to device.address,
-                        "name" to device.name,
-                        "type" to device.type,
-                        "isConnected" to FlutterBluetoothSerialPlugin.checkIsDeviceConnected(device),
-                        "bondState" to device.bondState,
-                    )
                     readSink?.success(
                         mapOf(
-                            "device" to deviceMap,
+                            "device" to getDeviceMap(device),
                             "bytes" to data,
                             "readCallbackHandle" to readCallbackHandle,
                         )
@@ -220,16 +233,48 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             }
         }
 
-        val onDisconnect = OnDisconnectedCallback { byRemote ->
-            if (byRemote) {
+        val onConnect = OnConnectCallback {
+            val device = getDevice(address)
+            if (device != null) {
                 launch {
-                    readSink?.endOfStream()
-                    readSink = null
+                    stateChangeSink?.success(
+                        mapOf(
+                            "device" to getDeviceMap(device),
+                            "connected" to true,
+                            "stateChangeCallbackHandle" to stateChangeCallbackHandle
+                        )
+                    )
                 }
             }
         }
 
-        val connection = BluetoothConnectionLE(onRead, onDisconnect, this)
+        val onDisconnect = OnDisconnectedCallback { byRemote ->
+//            if (byRemote) {
+//                launch {
+//                    readSink?.endOfStream()
+//                    readSink = null
+//                }
+//            }
+            connections[address]?.disconnect()
+            connections.remove(address)
+
+            val device = getDevice(address)
+            if (device != null) {
+                launch {
+                    stateChangeSink?.success(
+                        mapOf(
+                            "device" to getDeviceMap(device),
+                            "connected" to false,
+                            "stateChangeCallbackHandle" to stateChangeCallbackHandle
+                        )
+                    )
+                }
+            }
+
+            startTimer(scanInterval)
+        }
+
+        val connection = BluetoothConnectionLE(onRead, onConnect, onDisconnect, this)
         connection.connect(address)
         connections[address] = connection
         addresses.add(address)
@@ -250,5 +295,31 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
     private fun disconnect(address: String) {
         connections[address]?.disconnect()
         connections.remove(address)
+
+        addresses.remove(address)
+        store.putAddressSet(addresses)
+    }
+
+    fun getConnectedDevices(result: MethodChannel.Result) {
+        val devices = connections.keys
+            .mapNotNull { getDevice(it) }
+            .map { getDeviceMap(it) }
+
+        result.success(devices)
+    }
+
+    private fun getDevice(address: String): BluetoothDevice? {
+        val manager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        return manager.adapter.getRemoteDevice(address)
+    }
+
+    private fun getDeviceMap(device: BluetoothDevice): Map<String, Any> {
+        return mapOf(
+            "address" to device.address,
+            "name" to device.name,
+            "type" to device.type,
+            "isConnected" to FlutterBluetoothSerialPlugin.checkIsDeviceConnected(device),
+            "bondState" to device.bondState,
+        )
     }
 }

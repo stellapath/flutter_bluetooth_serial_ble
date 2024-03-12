@@ -4,6 +4,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.UUID;
@@ -14,6 +16,7 @@ import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase;
 import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase.OnReadCallback;
 import io.github.edufolly.flutterbluetoothserial.BluetoothConnectionBase.OnDisconnectedCallback;
 
+
 public class BluetoothConnectionLE extends BluetoothConnectionBase {
     public enum Connected { False, Pending, True } //DUMMY IDE claiming non-accessible
 
@@ -21,8 +24,16 @@ public class BluetoothConnectionLE extends BluetoothConnectionBase {
     private SerialSocket socket;
     private Context ctx;
 
+    private OnConnectCallback onConnectCallback;
+
     public BluetoothConnectionLE(OnReadCallback onReadCallback, OnDisconnectedCallback onDisconnectedCallback, Context appCtx) {
         super(onReadCallback, onDisconnectedCallback);
+        this.ctx = appCtx;
+    }
+
+    public BluetoothConnectionLE(OnReadCallback onReadCallback, OnConnectCallback onConnectCallback, OnDisconnectedCallback onDisconnectedCallback, Context appCtx) {
+        super(onReadCallback, onDisconnectedCallback);
+        this.onConnectCallback = onConnectCallback;
         this.ctx = appCtx;
     }
 
@@ -57,6 +68,10 @@ public class BluetoothConnectionLE extends BluetoothConnectionBase {
                     //System.out.println("onSerialConnect");
                     connectionResult[0] = true;
                     done.countDown();
+
+                    if (onConnectCallback != null) {
+                        onConnectCallback.onConnect();
+                    }
                 }
 
                 @Override
@@ -84,7 +99,8 @@ public class BluetoothConnectionLE extends BluetoothConnectionBase {
 
                 @Override
                 public void onSerialIoError(Exception e) {
-                    throw new RuntimeException("//DUMMY", e); //THINK send connection error or what?
+//                    throw new RuntimeException("//DUMMY", e); //THINK send connection error or what?
+                    BluetoothConnectionLE.this.onDisconnected(true);
                 }
             });
             //System.out.println("awaiting connect done...");

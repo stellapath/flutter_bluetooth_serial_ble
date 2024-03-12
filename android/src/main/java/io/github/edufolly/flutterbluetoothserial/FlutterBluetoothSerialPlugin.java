@@ -1112,8 +1112,10 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                 }
                 break;
 
-                case "foo": {
-                    System.out.println(">>> foo");
+                case "getConnectedDevices": {
+                    if (currentRunningService != null) {
+                        currentRunningService.getConnectedDevices(result);
+                    }
                 }
                 break;
 
