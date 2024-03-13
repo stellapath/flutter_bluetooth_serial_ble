@@ -1132,6 +1132,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                         result.error("service_not_running", "service is not running", null);
                     }
                 }
+                break;
 
                 default:
                     result.notImplemented();
