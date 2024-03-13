@@ -69,7 +69,7 @@ class BLEBackgroundConnection {
   }
 
   Future<void> write(String address, Uint8List bytes) {
-    return _channel.invokeMapMethod("writeOnBackground", {
+    return _channel.invokeMethod("writeOnBackground", {
       "address": address,
       "bytes": bytes,
     });
