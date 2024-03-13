@@ -67,4 +67,11 @@ class BLEBackgroundConnection {
     return _channel.invokeListMethod("getConnectedDevices").then(
         (value) => value!.map((e) => BluetoothDevice.fromMap(e)).toList());
   }
+
+  Future<void> write(String address, Uint8List bytes) {
+    return _channel.invokeMapMethod("writeOnBackground", {
+      "address": address,
+      "bytes": bytes,
+    });
+  }
 }

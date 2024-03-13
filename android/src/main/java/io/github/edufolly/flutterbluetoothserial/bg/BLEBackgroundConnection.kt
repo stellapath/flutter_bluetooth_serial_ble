@@ -322,4 +322,14 @@ class BLEBackgroundConnection : Service(), CoroutineScope {
             "bondState" to device.bondState,
         )
     }
+
+    fun write(result: MethodChannel.Result, address: String, bytes: ByteArray) {
+        try {
+            val connection = connections[address]
+            connection?.write(bytes)
+            launch { result.success(result) }
+        } catch (e: Exception) {
+            launch { result.error("write_error", e.message, FlutterBluetoothSerialPlugin.exceptionToString(e)) }
+        }
+    }
 }

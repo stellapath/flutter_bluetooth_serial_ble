@@ -467,7 +467,7 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
 
 
     /// Helper function to get string out of exception
-    static private String exceptionToString(Exception ex) {
+    static public String exceptionToString(Exception ex) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         ex.printStackTrace(pw);
@@ -1101,6 +1101,8 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                 case "connectOnBackground": {
                     if (currentRunningService != null) {
                         currentRunningService.connect(result, call.argument("address"));
+                    } else {
+                        result.error("service_not_running", "service is not running", null);
                     }
                 }
                 break;
@@ -1108,6 +1110,8 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                 case "disconnectOnBackground": {
                     if (currentRunningService != null) {
                         currentRunningService.disconnect(result, call.argument("address"));
+                    } else {
+                        result.error("service_not_running", "service is not running", null);
                     }
                 }
                 break;
@@ -1115,9 +1119,19 @@ public class FlutterBluetoothSerialPlugin implements FlutterPlugin, ActivityAwar
                 case "getConnectedDevices": {
                     if (currentRunningService != null) {
                         currentRunningService.getConnectedDevices(result);
+                    } else {
+                        result.error("service_not_running", "service is not running", null);
                     }
                 }
                 break;
+
+                case "writeOnBackground": {
+                    if (currentRunningService != null) {
+                        currentRunningService.write(result, call.argument("address"), call.argument("bytes"));
+                    } else {
+                        result.error("service_not_running", "service is not running", null);
+                    }
+                }
 
                 default:
                     result.notImplemented();
